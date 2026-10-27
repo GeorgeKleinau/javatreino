@@ -29,3 +29,6 @@
 .code-surface textarea::selection { background:#b9d1ff; color:transparent; }
 .token-comment { color:#739166; font-style:italic; }.token-string { color:#b45a1c; }.token-keyword { color:#824dcc; font-weight:700; }.token-type { color:#126fb0; }.token-number { color:#a15008; }
 .submission-modal { position:fixed; z-index:10; inset:0; display:grid; place-items:center; padding:20px; background:#172233aa; }.submission-modal[hidden] { display:none; }.submission-card { width:min(420px, 100%); padding:34px; border-radius:16px; background:#fff; text-align:center; box-shadow:0 20px 60px #0a172944; }.submission-card h2 { margin:12px 0 8px; color:#17345a; }.submission-card p { margin:0 0 24px; color:#66758a; font-size:14px; line-height:1.5; }.celebration-mark { width:58px; height:58px; display:grid; place-items:center; margin:auto; border-radius:50%; background:#e5f8ef; color:#16a36a; font-size:26px; }
+
+/* Área de código: fundo inteiramente branco, texto destacado por cima. */
+.editor-card, .editor-toolbar, .editor-area, .editor-area pre, .code-surface, .highlight-layer { background:#fff; }
