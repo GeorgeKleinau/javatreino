@@ -1,6 +1,7 @@
 const state = { exercises: [], activeExercise: 0, activeFile: 0, drafts: JSON.parse(localStorage.getItem('codetype-drafts') || '{}') };
 const $ = selector => document.querySelector(selector);
 const editor = $('#codeEditor');
+const highlightLayer = $('#highlightLayer');
 const saved = () => localStorage.setItem('codetype-drafts', JSON.stringify(state.drafts));
 const exercise = () => state.exercises[state.activeExercise];
 const file = () => exercise().files[state.activeFile];
@@ -30,6 +31,23 @@ function updateLineNumbers() {
   }).join('\n');
   $('#lineNumbers').scrollTop = editor.scrollTop;
 }
+function highlightJava(source) {
+  const tokenPattern = /(\/\/[^\n]*|\/\*[\s\S]*?\*\/)|("(?:\\.|[^"\\])*")|('(?:\\.|[^'\\])*')|\b(package|import|public|private|protected|class|interface|enum|static|final|void|return|new|if|else|for|while|do|switch|case|break|continue|try|catch|finally|throw|throws|extends|implements|this|super|true|false|null)\b|\b(String|Integer|Double|Boolean|Character|Object|ArrayList|List|Scanner|System|Math|[A-Z][A-Za-z0-9_]*)\b|\b\d+(?:\.\d+)?\b/g;
+  let output = '';
+  let cursor = 0;
+  for (const match of source.matchAll(tokenPattern)) {
+    output += escapeHTML(source.slice(cursor, match.index));
+    const token = escapeHTML(match[0]);
+    const className = match[1] ? 'token-comment' : match[2] || match[3] ? 'token-string' : match[4] ? 'token-keyword' : match[5] ? 'token-type' : 'token-number';
+    output += `<span class="${className}">${token}</span>`;
+    cursor = match.index + match[0].length;
+  }
+  return output + escapeHTML(source.slice(cursor)) + '\n';
+}
+function updateHighlight() {
+  highlightLayer.innerHTML = highlightJava(editor.value);
+  highlightLayer.style.transform = `translate(${-editor.scrollLeft}px, ${-editor.scrollTop}px)`;
+}
 function updateProgress() {
   const all = state.exercises.flatMap(item => item.files);
   const complete = all.filter(item => normalize(state.drafts[`${state.exercises.find(ex => ex.files.includes(item)).id}/${item.path}`] || '') === normalize(item.code)).length;
@@ -49,6 +67,7 @@ function renderFiles() {
   $('#filePath').textContent = file().path;
   editor.value = state.drafts[draftKey()] || '';
   updateLineNumbers();
+  updateHighlight();
 }
 function normalize(text) { return text.replace(/\r\n/g, '\n').replace(/\n$/, ''); }
 function codeLines(text) {
@@ -153,12 +172,13 @@ function submitActivity() {
   });
   const mistakes = results.flatMap(result => result.comparison.issues.map(issue => ({ ...issue, source: result.source })));
   const syntaxIssues = results.flatMap(result => result.syntaxIssues.map(issue => ({ ...issue, source: result.source })));
-  if (!mistakes.length && !syntaxIssues.length) showResult({ total: exercise().files.reduce((sum, source) => sum + codeLines(source.code).length, 0), issues: [], syntaxIssues: [] }, 'atividade');
+  const totalIssues = mistakes.length + syntaxIssues.length;
+  if (!totalIssues) showResult({ total: exercise().files.reduce((sum, source) => sum + codeLines(source.code).length, 0), issues: [], syntaxIssues: [] }, 'atividade');
   else { showResult({ total: 0, issues: mistakes, syntaxIssues }, 'atividade'); $('#feedbackHeading').textContent = `${mistakes.length + syntaxIssues.length} ajuste(s) na atividade`; }
   renderExercises(); updateProgress();
-  const report = exercise().files.map(source => `// ${source.path}\n${state.drafts[`${exercise().id}/${source.path}`] || '(arquivo não digitado)'}`).join('\n\n');
-  const subject = `Atividade Java — ${displayTitle(exercise())}`;
-  window.location.href = `mailto:george.vasconcelos@ulife.com.br?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(report)}`;
+  $('#submissionTitle').textContent = totalIssues ? 'Tarefa enviada!' : 'Parabéns, tarefa concluída!';
+  $('#submissionMessage').textContent = totalIssues ? `Seu envio foi registrado. A correção encontrou ${totalIssues} ajuste(s) para você revisar.` : 'Seu código está correto. Excelente trabalho!';
+  $('#submissionModal').hidden = false;
 }
 function updateTypingFeedback() {
   const card = document.querySelector('.editor-card');
@@ -178,14 +198,15 @@ function setExercise(index) { state.activeExercise = index; state.activeFile = 0
 
 $('#exerciseList').addEventListener('click', event => { const button = event.target.closest('[data-exercise]'); if (button) setExercise(Number(button.dataset.exercise)); });
 $('#fileTabs').addEventListener('click', event => { const button = event.target.closest('[data-file]'); if (!button) return; state.drafts[draftKey()] = editor.value; saved(); state.activeFile = Number(button.dataset.file); renderFiles(); updateTypingFeedback(); });
-editor.addEventListener('input', () => { state.drafts[draftKey()] = editor.value; saved(); updateLineNumbers(); updateTypingFeedback(); });
-editor.addEventListener('scroll', () => { $('#lineNumbers').scrollTop = editor.scrollTop; });
+editor.addEventListener('input', () => { state.drafts[draftKey()] = editor.value; saved(); updateLineNumbers(); updateHighlight(); updateTypingFeedback(); });
+editor.addEventListener('scroll', () => { $('#lineNumbers').scrollTop = editor.scrollTop; updateHighlight(); });
 editor.addEventListener('keydown', event => { if (event.key === 'Tab') { event.preventDefault(); const start = editor.selectionStart, end = editor.selectionEnd; editor.setRangeText('    ', start, end, 'end'); editor.dispatchEvent(new Event('input')); } if (((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'v') || (event.shiftKey && event.key === 'Insert')) { event.preventDefault(); $('#keyboardTip').textContent = 'Colar está bloqueado. Digite o código diretamente no editor.'; } });
 editor.addEventListener('paste', event => { event.preventDefault(); $('#keyboardTip').textContent = 'Colar está bloqueado. Digite o código diretamente no editor.'; });
 editor.addEventListener('drop', event => { event.preventDefault(); $('#keyboardTip').textContent = 'Arrastar conteúdo também está bloqueado. Digite o código diretamente no editor.'; });
 editor.addEventListener('contextmenu', event => event.preventDefault());
 $('#checkButton').addEventListener('click', verifyFile); $('#submitButton').addEventListener('click', submitActivity); $('#clearButton').addEventListener('click', () => { if (editor.value && confirm('Limpar somente o conteúdo deste arquivo?')) { editor.value = ''; editor.dispatchEvent(new Event('input')); } });
 $('#clearFeedback').addEventListener('click', () => { $('#feedbackHeading').textContent = 'Aguardando envio'; $('#feedback').className = 'feedback empty'; $('#feedback').innerHTML = '<div class="empty-icon">✓</div><p>Digite o código e clique em <strong>Verificar este arquivo</strong>.</p>'; });
+$('#closeSubmission').addEventListener('click', () => { $('#submissionModal').hidden = true; });
 
 function initialize(exercises) {
   state.exercises = exercises;
