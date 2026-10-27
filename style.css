@@ -19,3 +19,5 @@
 .line-number { display:block; }
 .line-number.correct { color:#149b64; font-weight:700; }
 .line-number.incorrect { color:#db4d4d; }
+.syntax-list { display:grid; gap:9px; margin-bottom:9px; }
+.issue.syntax { border-left-color:#7c52c9; background:#f7f1ff; color:#55358e; }

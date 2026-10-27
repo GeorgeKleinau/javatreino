@@ -21,9 +21,11 @@ function displayTitle(item) {
 
 function updateLineNumbers() {
   const typed = editor.value.split('\n');
-  const expected = state.exercises.length ? file().code.split('\n') : [];
+  const typedCode = state.exercises.length ? codeLines(editor.value) : [];
+  const expectedCode = state.exercises.length ? codeLines(file().code) : [];
+  const statusByLine = new Map(typedCode.map((item, index) => [item.line, item.text === expectedCode[index]?.text ? ' correct' : ' incorrect']));
   $('#lineNumbers').innerHTML = Array.from({ length: Math.max(1, typed.length) }, (_, index) => {
-    const status = !editor.value ? '' : typed[index] === expected[index] ? ' correct' : ' incorrect';
+    const status = !editor.value ? '' : statusByLine.get(index + 1) || '';
     return `<span class="line-number${status}">${index + 1}</span>`;
   }).join('\n');
   $('#lineNumbers').scrollTop = editor.scrollTop;
@@ -49,52 +51,110 @@ function renderFiles() {
   updateLineNumbers();
 }
 function normalize(text) { return text.replace(/\r\n/g, '\n').replace(/\n$/, ''); }
+function codeLines(text) {
+  let inBlockComment = false;
+  return normalize(text).split('\n').flatMap((line, index) => {
+    const trimmed = line.trim();
+    const startsBlock = line.includes('/*');
+    const endsBlock = line.includes('*/');
+    const isComment = inBlockComment || startsBlock || endsBlock || line.includes('//');
+    if (startsBlock) inBlockComment = !endsBlock;
+    else if (endsBlock) inBlockComment = false;
+    return !trimmed || isComment ? [] : [{ text: line, line: index + 1 }];
+  });
+}
 function firstDifference(expected, typed) {
   const limit = Math.min(expected.length, typed.length);
   for (let index = 0; index < limit; index++) if (expected[index] !== typed[index]) return index + 1;
   return limit + 1;
 }
 function analyze(expected, actual) {
-  const wanted = normalize(expected).split('\n');
-  const typed = normalize(actual).split('\n');
+  const wanted = codeLines(expected);
+  const typed = codeLines(actual);
   const issues = [];
   const max = Math.max(wanted.length, typed.length);
   for (let index = 0; index < max; index++) {
-    if (wanted[index] === typed[index]) continue;
+    const expectedLine = wanted[index];
+    const typedLine = typed[index];
+    if (expectedLine?.text === typedLine?.text) continue;
     let reason;
-    if (typed[index] === undefined) reason = 'Linha faltando.';
-    else if (wanted[index] === undefined) reason = 'Linha extra.';
-    else if (wanted[index].toLocaleLowerCase('pt-BR') === typed[index].toLocaleLowerCase('pt-BR')) reason = 'Maiúsculas/minúsculas diferentes (a comparação é case sensitive).';
-    else if (wanted[index].trim() === typed[index].trim()) reason = 'Indentação ou espaços diferentes.';
-    else if (wanted[index].replace(/\s/g, '') === typed[index].replace(/\s/g, '')) reason = 'Espaços em posição diferente.';
-    else reason = `Texto diferente a partir do caractere ${firstDifference(wanted[index], typed[index])}.`;
-    issues.push({ line: index + 1, reason, expected: wanted[index], typed: typed[index] });
+    if (!typedLine) reason = 'Linha de código faltando.';
+    else if (!expectedLine) reason = 'Linha de código extra.';
+    else if (expectedLine.text.toLocaleLowerCase('pt-BR') === typedLine.text.toLocaleLowerCase('pt-BR')) reason = 'Maiúsculas/minúsculas diferentes (a comparação é case sensitive).';
+    else if (expectedLine.text.trim() === typedLine.text.trim()) reason = 'Indentação ou espaços diferentes.';
+    else if (expectedLine.text.replace(/\s/g, '') === typedLine.text.replace(/\s/g, '')) reason = 'Espaços em posição diferente.';
+    else reason = `Texto diferente a partir do caractere ${firstDifference(expectedLine.text, typedLine.text)}.`;
+    issues.push({ line: typedLine?.line || expectedLine.line, expectedLine: expectedLine?.line, reason, expected: expectedLine?.text, typed: typedLine?.text });
   }
   return { total: wanted.length, issues };
+}
+function validateJavaSyntax(source) {
+  const issues = [];
+  const stack = [];
+  let inBlockComment = false;
+  let quote = null;
+  let quoteLine = null;
+  for (const [index, originalLine] of normalize(source).split('\n').entries()) {
+    const lineNumber = index + 1;
+    let line = originalLine;
+    if (inBlockComment) {
+      const end = line.indexOf('*/');
+      if (end === -1) continue;
+      line = line.slice(end + 2); inBlockComment = false;
+    }
+    const blockStart = line.indexOf('/*');
+    if (blockStart !== -1) { const blockEnd = line.indexOf('*/', blockStart + 2); if (blockEnd === -1) { inBlockComment = true; line = line.slice(0, blockStart); } else line = line.slice(0, blockStart) + line.slice(blockEnd + 2); }
+    line = line.split('//')[0];
+    for (let charIndex = 0; charIndex < line.length; charIndex++) {
+      const char = line[charIndex];
+      const escaped = charIndex > 0 && line[charIndex - 1] === '\\' && line[charIndex - 2] !== '\\';
+      if (quote) { if (char === quote && !escaped) quote = null; continue; }
+      if (char === '"' || char === "'") { quote = char; quoteLine = lineNumber; continue; }
+      if ('{[('.includes(char)) stack.push({ char, line: lineNumber });
+      if ('}])'.includes(char)) {
+        const opener = stack.pop();
+        const pair = { '}': '{', ']': '[', ')': '(' }[char];
+        if (!opener || opener.char !== pair) issues.push({ line: lineNumber, reason: `Símbolo '${char}' sem abertura correspondente.` });
+      }
+    }
+  }
+  if (quote) issues.push({ line: quoteLine, reason: `Literal ${quote === '"' ? 'de texto' : 'de caractere'} sem fechamento.` });
+  for (const opener of stack.reverse()) issues.push({ line: opener.line, reason: `Símbolo '${opener.char}' sem fechamento correspondente.` });
+  if (inBlockComment) issues.push({ line: normalize(source).split('\n').length, reason: 'Comentário de bloco sem fechamento */.' });
+  return issues;
 }
 function showResult(result, scope = 'arquivo') {
   const feedback = $('#feedback');
   const heading = $('#feedbackHeading');
-  if (!result.issues.length) {
+  const syntaxIssues = result.syntaxIssues || [];
+  if (!result.issues.length && !syntaxIssues.length) {
     heading.textContent = scope === 'atividade' ? 'Atividade concluída!' : 'Arquivo correto!';
     feedback.className = 'feedback';
     feedback.innerHTML = `<div class="all-success"><div class="empty-icon">✓</div><strong>${scope === 'atividade' ? 'Excelente! Todos os arquivos foram digitados corretamente.' : `As ${result.total} linhas estão idênticas ao gabarito.`}</strong><p>Você pode seguir para o próximo arquivo ou atividade.</p></div>`;
     return;
   }
-  heading.textContent = `${result.issues.length} ajuste${result.issues.length > 1 ? 's' : ''} encontrado${result.issues.length > 1 ? 's' : ''}`;
+  const totalIssues = result.issues.length + syntaxIssues.length;
+  heading.textContent = `${totalIssues} ajuste${totalIssues > 1 ? 's' : ''} encontrado${totalIssues > 1 ? 's' : ''}`;
   const visible = result.issues.slice(0, 8);
   feedback.className = 'feedback';
-  feedback.innerHTML = `<div class="result-summary warning">A correção é literal e diferencia maiúsculas de minúsculas. Veja exatamente o esperado e o que foi digitado.</div><div class="issue-list">${visible.map(issue => `<div class="issue ${issue.expected === undefined ? 'correct-line' : ''}"><strong>Linha ${issue.line}</strong> — ${issue.reason}${issue.expected !== undefined ? `<code>Esperado: ${escapeHTML(issue.expected || '(linha em branco)')}</code>` : ''}${issue.typed !== undefined ? `<code>Digitado: ${escapeHTML(issue.typed || '(linha em branco)')}</code>` : ''}</div>`).join('')}</div>${result.issues.length > visible.length ? `<p class="more">E mais ${result.issues.length - visible.length} linha(s) para revisar.</p>` : ''}`;
+  feedback.innerHTML = `<div class="result-summary warning">Comentários e linhas vazias não entram na comparação. A validação também verifica a estrutura básica da sintaxe Java.</div>${syntaxIssues.length ? `<div class="syntax-list">${syntaxIssues.map(issue => `<div class="issue syntax"><strong>Sintaxe — linha ${issue.line}</strong> — ${issue.reason}</div>`).join('')}</div>` : ''}<div class="issue-list">${visible.map(issue => `<div class="issue ${issue.expected === undefined ? 'correct-line' : ''}"><strong>Linha ${issue.line}${issue.expectedLine ? ` (código esperado na linha ${issue.expectedLine})` : ''}</strong> — ${issue.reason}${issue.expected !== undefined ? `<code>Esperado: ${escapeHTML(issue.expected || '(linha em branco)')}</code>` : ''}${issue.typed !== undefined ? `<code>Digitado: ${escapeHTML(issue.typed || '(linha em branco)')}</code>` : ''}</div>`).join('')}</div>${result.issues.length > visible.length ? `<p class="more">E mais ${result.issues.length - visible.length} linha(s) de código para revisar.</p>` : ''}`;
 }
 function verifyFile() {
   state.drafts[draftKey()] = editor.value; saved();
-  showResult(analyze(file().code, editor.value)); renderExercises(); updateProgress();
+  const result = analyze(file().code, editor.value);
+  result.syntaxIssues = validateJavaSyntax(editor.value);
+  showResult(result); renderExercises(); updateProgress();
 }
 function submitActivity() {
   state.drafts[draftKey()] = editor.value; saved();
-  const mistakes = exercise().files.flatMap(source => analyze(source.code, state.drafts[`${exercise().id}/${source.path}`] || '').issues.map(issue => ({ ...issue, source: source.name })));
-  if (!mistakes.length) showResult({ total: exercise().files.reduce((sum, source) => sum + source.code.split('\n').length, 0), issues: [] }, 'atividade');
-  else { showResult({ total: 0, issues: mistakes }, 'atividade'); $('#feedbackHeading').textContent = `${mistakes.length} ajuste(s) na atividade`; }
+  const results = exercise().files.map(source => {
+    const typed = state.drafts[`${exercise().id}/${source.path}`] || '';
+    return { source: source.name, comparison: analyze(source.code, typed), syntaxIssues: validateJavaSyntax(typed) };
+  });
+  const mistakes = results.flatMap(result => result.comparison.issues.map(issue => ({ ...issue, source: result.source })));
+  const syntaxIssues = results.flatMap(result => result.syntaxIssues.map(issue => ({ ...issue, source: result.source })));
+  if (!mistakes.length && !syntaxIssues.length) showResult({ total: exercise().files.reduce((sum, source) => sum + codeLines(source.code).length, 0), issues: [], syntaxIssues: [] }, 'atividade');
+  else { showResult({ total: 0, issues: mistakes, syntaxIssues }, 'atividade'); $('#feedbackHeading').textContent = `${mistakes.length + syntaxIssues.length} ajuste(s) na atividade`; }
   renderExercises(); updateProgress();
   const report = exercise().files.map(source => `// ${source.path}\n${state.drafts[`${exercise().id}/${source.path}`] || '(arquivo não digitado)'}`).join('\n\n');
   const subject = `Atividade Java — ${displayTitle(exercise())}`;
@@ -107,13 +167,12 @@ function updateTypingFeedback() {
   card.classList.remove('typing-correct', 'typing-progress', 'typing-error');
   if (!typed) { status.textContent = 'Aguardando digitação'; return; }
   const result = analyze(file().code, typed);
-  const lines = typed.split('\n');
-  const expected = file().code.split('\n');
-  const lastLine = lines.length - 1;
-  const exactLines = lines.filter((line, index) => line === expected[index]).length;
+  const typedCode = codeLines(typed);
+  const expectedCode = codeLines(file().code);
+  const exactLines = typedCode.filter((line, index) => line.text === expectedCode[index]?.text).length;
   if (!result.issues.length) { card.classList.add('typing-correct'); status.textContent = 'Código idêntico ao gabarito'; }
-  else if (lines[lastLine] === expected[lastLine]) { card.classList.add('typing-progress'); status.textContent = `${exactLines} linha(s) corretas`; }
-  else { card.classList.add('typing-error'); status.textContent = `Ajuste a linha ${lastLine + 1}`; }
+  else if (exactLines) { card.classList.add('typing-progress'); status.textContent = `${exactLines} linha(s) de código corretas`; }
+  else { card.classList.add('typing-error'); status.textContent = 'Ajuste a primeira linha de código'; }
 }
 function setExercise(index) { state.activeExercise = index; state.activeFile = 0; renderExercises(); renderFiles(); updateTypingFeedback(); $('#feedbackHeading').textContent = 'Aguardando envio'; $('#feedback').className = 'feedback empty'; $('#feedback').innerHTML = '<div class="empty-icon">✓</div><p>Digite o código e clique em <strong>Verificar este arquivo</strong>.</p>'; }
 
