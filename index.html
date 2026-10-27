@@ -9,7 +9,7 @@
 <body>
   <header class="topbar">
     <a class="brand" href="#"><span class="brand-mark">&lt;/&gt;</span><span>Prof. George Kleinau</span></a>
-    <div class="topbar-copy"><strong>Prática guiada de Java</strong><span>Digite, compare e aprenda</span></div>
+    <div class="topbar-copy"><strong>Prática guiada de Java</strong></div>
     <div class="progress-wrap"><span id="overallProgress">0 de 0 arquivos concluídos</span><div class="progress"><i id="progressBar"></i></div></div>
   </header>
 
@@ -30,11 +30,11 @@
       </div>
       <div id="fileTabs" class="file-tabs" role="tablist"></div>
       <div class="editor-card">
-        <div class="editor-toolbar"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span><span id="filePath">Selecione um arquivo</span><span class="language">JAVA</span></div>
+        <div class="editor-toolbar"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span><span id="filePath">Selecione um arquivo</span><span id="typingStatus" class="typing-status">Aguardando digitação</span><span class="language">JAVA</span></div>
         <div class="editor-area"><pre id="lineNumbers" aria-hidden="true">1</pre><textarea id="codeEditor" spellcheck="false" autocomplete="off" autocapitalize="off" aria-label="Editor de código"></textarea></div>
       </div>
       <div class="actions"><button class="secondary-button" id="checkButton" type="button">Verificar este arquivo</button><button class="primary-button" id="submitButton" type="button">Enviar atividade <span>→</span></button></div>
-      <p class="keyboard-tip">Dica: use Tab para indentar. Seu rascunho fica salvo neste navegador.</p>
+      <p class="keyboard-tip" id="keyboardTip">Colar é bloqueado: digite o código. A comparação diferencia maiúsculas e minúsculas.</p>
     </section>
 
     <aside class="feedback-panel">
