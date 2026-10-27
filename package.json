@@ -1,0 +1,9 @@
+{
+  "name": "laboratorio-de-digitacao-java",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Prática de digitação de código Java com correção linha a linha.",
+  "scripts": {
+    "start": "node server.js"
+  }
+}

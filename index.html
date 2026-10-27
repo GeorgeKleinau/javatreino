@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Professor George Kleinau - Atividades</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="#"><span class="brand-mark">&lt;/&gt;</span><span>Prof. George Kleinau</span></a>
+    <div class="topbar-copy"><strong>Prática guiada de Java</strong><span>Digite, compare e aprenda</span></div>
+    <div class="progress-wrap"><span id="overallProgress">0 de 0 arquivos concluídos</span><div class="progress"><i id="progressBar"></i></div></div>
+  </header>
+
+  <main class="layout">
+    <aside class="sidebar">
+      <p class="eyebrow">ATIVIDADES</p>
+      <nav id="exerciseList" aria-label="Lista de atividades"></nav>
+      <section class="sidebar-help">
+        <strong>Como praticar</strong>
+        <p>Selecione uma atividade, escolha um arquivo e digite o código. A correção mostra exatamente onde ajustar.</p>
+      </section>
+    </aside>
+
+    <section class="workspace">
+      <div class="workspace-header">
+        <div><p class="eyebrow" id="exerciseLabel">CARREGANDO</p><h1 id="exerciseTitle">Preparando atividades…</h1></div>
+        <button class="ghost-button" id="clearButton" type="button">Limpar arquivo</button>
+      </div>
+      <div id="fileTabs" class="file-tabs" role="tablist"></div>
+      <div class="editor-card">
+        <div class="editor-toolbar"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span><span id="filePath">Selecione um arquivo</span><span class="language">JAVA</span></div>
+        <div class="editor-area"><pre id="lineNumbers" aria-hidden="true">1</pre><textarea id="codeEditor" spellcheck="false" autocomplete="off" autocapitalize="off" aria-label="Editor de código"></textarea></div>
+      </div>
+      <div class="actions"><button class="secondary-button" id="checkButton" type="button">Verificar este arquivo</button><button class="primary-button" id="submitButton" type="button">Enviar atividade <span>→</span></button></div>
+      <p class="keyboard-tip">Dica: use Tab para indentar. Seu rascunho fica salvo neste navegador.</p>
+    </section>
+
+    <aside class="feedback-panel">
+      <div class="feedback-title"><span class="pulse"></span><div><p class="eyebrow">CORREÇÃO</p><h2 id="feedbackHeading">Aguardando envio</h2></div><button class="clear-feedback" id="clearFeedback" type="button">Limpar</button></div>
+      <div id="feedback" class="feedback empty"><div class="empty-icon">✓</div><p>Digite o código e clique em <strong>Verificar este arquivo</strong>.</p></div>
+    </aside>
+  </main>
+  <script src="gabaritos.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
