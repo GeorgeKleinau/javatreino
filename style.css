@@ -22,9 +22,10 @@
 .syntax-list { display:grid; gap:9px; margin-bottom:9px; }
 .issue.syntax { border-left-color:#7c52c9; background:#f7f1ff; color:#55358e; }
 .code-surface { position:relative; flex:1; min-width:0; height:100%; overflow:hidden; background:#fff; }
+.code-surface:focus-within { box-shadow:inset 3px 0 0 #2767f5; }
 .highlight-layer, .code-surface textarea { position:absolute; inset:0; width:100%; height:100%; margin:0; padding:17px; border:0; font:13px/1.6 ui-monospace,SFMono-Regular,Menlo,monospace; tab-size:4; white-space:pre; }
-.highlight-layer { pointer-events:none; overflow:visible; color:#24364a; background:transparent; }
-.code-surface textarea { z-index:1; resize:none; color:transparent; caret-color:#172233; background:transparent; outline:0; overflow:auto; }
+.highlight-layer { z-index:0; pointer-events:none; overflow:visible; color:#24364a; background:transparent; }
+.code-surface textarea { z-index:2; pointer-events:auto; resize:none; color:transparent; -webkit-text-fill-color:transparent; caret-color:#172233; cursor:text; background:transparent; outline:0; overflow:auto; }
 .code-surface textarea::selection { background:#b9d1ff; color:transparent; }
 .token-comment { color:#739166; font-style:italic; }.token-string { color:#b45a1c; }.token-keyword { color:#824dcc; font-weight:700; }.token-type { color:#126fb0; }.token-number { color:#a15008; }
 .submission-modal { position:fixed; z-index:10; inset:0; display:grid; place-items:center; padding:20px; background:#172233aa; }.submission-modal[hidden] { display:none; }.submission-card { width:min(420px, 100%); padding:34px; border-radius:16px; background:#fff; text-align:center; box-shadow:0 20px 60px #0a172944; }.submission-card h2 { margin:12px 0 8px; color:#17345a; }.submission-card p { margin:0 0 24px; color:#66758a; font-size:14px; line-height:1.5; }.celebration-mark { width:58px; height:58px; display:grid; place-items:center; margin:auto; border-radius:50%; background:#e5f8ef; color:#16a36a; font-size:26px; }
