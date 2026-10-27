@@ -176,8 +176,8 @@ function submitActivity() {
   if (!totalIssues) showResult({ total: exercise().files.reduce((sum, source) => sum + codeLines(source.code).length, 0), issues: [], syntaxIssues: [] }, 'atividade');
   else { showResult({ total: 0, issues: mistakes, syntaxIssues }, 'atividade'); $('#feedbackHeading').textContent = `${mistakes.length + syntaxIssues.length} ajuste(s) na atividade`; }
   renderExercises(); updateProgress();
-  $('#submissionTitle').textContent = totalIssues ? 'Tarefa enviada!' : 'Parabéns, tarefa concluída!';
-  $('#submissionMessage').textContent = totalIssues ? `Seu envio foi registrado. A correção encontrou ${totalIssues} ajuste(s) para você revisar.` : 'Seu código está correto. Excelente trabalho!';
+  $('#submissionTitle').textContent = totalIssues ? 'Validação concluída' : 'Atividade validada!';
+  $('#submissionMessage').textContent = totalIssues ? `A atividade foi validada. Encontramos ${totalIssues} ajuste(s) para você revisar com calma.` : 'Parabéns! Sua atividade foi validada e está tudo certo.';
   $('#submissionModal').hidden = false;
 }
 function updateTypingFeedback() {
